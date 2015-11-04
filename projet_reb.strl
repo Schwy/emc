@@ -3,6 +3,7 @@
 %gcc -c -m32 projet.c
 %xes -Xcomp -m32 projet.o
 
+	%%%%%%%%%%%%%%%%MONTEE/DESCENTE%%%%%%%%%%%%%%%%
 	%On se situe à un étage.
 	%Un bouton est enfoncé.
 		%Si l'ascenceur MONTAIT
@@ -16,11 +17,26 @@
 
 		%PASSAGE à un etage
 			%Etage non sélectionné : continue	(CURRENT_FLOOR : émettre valeur étage dans lequel on vient de passer)
-			%Etage sélectionné : arrêt			(Variable LIGHT_#etage à éteindre car l'étage n'est plus demandé)
+			%Etage sélectionné : arrêt		(Variable LIGHT_#etage à éteindre car l'étage n'est plus demandé)
 
 		%Retourne au début
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+	%%%%%%%%%%%%%DEPLACEMENT ASCENCEUR%%%%%%%%%%%%%
+	%Quand l'ascenseur va être en mouvement (monte ou descend)
+		%FERMETURE Portes
+		%Etage precedent <= etage_actuel
+			%Attend 4(m)*4= 16sec une fois que l'ascenceur est en mouvement
+			%MONTAIT : etage_actuel = etage_precedent + 1
+			%DESCENDAIT : etage_actuel = etage_precedent - 1
+				%Si l'étage n'était pas demandé, loop jusqu'au prochain étage
+				%Si l'étage était demandé (hold_x), l'ascenceur s'arrête.
+		%OUVERTURE Portes
+				
 
 	%Affichage des lampes à faire en parallèle
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 module Elevator:
 	input SEC;				%Secondes
@@ -30,29 +46,98 @@ module Elevator:
 	%input SENSOR_0,SENSOR_1,SENSOR_2,SENSOR_3,SENSOR_4,SENSOR_5,SENSOR_6,SENSOR_7,SENSOR_8,SENSOR_9;	%Sensors etages
 
 	output LIGHT_0,LIGHT_1,LIGHT_2,LIGHT_3,LIGHT_4,LIGHT_5,LIGHT_6,LIGHT_7,LIGHT_8,LIGHT_9;				%Lumières boutons
-	output CURRENT_FLOOR;	%Etage actuel (affichage interieur et extérieur);
-	output MONTE, DESCEND, ARRET;
+	output CURRENT_FLOOR: integer;	%Etage actuel (affichage interieur et extérieur);
+	output MONTE, DESCEND, ARRET, D_CLOSED;	%Savoir si l'ascenceur monte ou descend (ou arrêté)
 	
-	var mv_up, mv_down, stopped, montait, descendait, bouton: boolean in
-		var etage_prec, etage_actuel, etage_dem, tab: integer in
+	var mv_up, mv_down, stopped, montait, descendait, bouton, door_closed: boolean in
+		var etage_prec, etage_actuel, etage_dem, tick_etage: integer in
 			var hold_0,hold_1,hold_2,hold_3,hold_4,hold_5,hold_6,hold_7,hold_8,hold_9: boolean in
 
 				%INITIALISATION
 				etage_actuel:=2;
-				etage_prec:=0;
+				etage_prec:=etage_actuel;
 				%etage_dem:=0;
 				montait :=true;
 				descendait :=false;
 				bouton :=false;
 				hold_0:=false;hold_1:=false;hold_2:=false;hold_3:=false;hold_4:=false;	%Etages selectionnés
 				hold_5:=false;hold_6:=false;hold_7:=false;hold_8:=false;hold_9:=false;	%Etages selectionnés
-				
+				door_closed := true; %!!!!! TODO: A CHANGER INITIALISATION
+				stopped := true;
+				mv_up := false;
+				mv_down := false;
+				tick_etage := 0;
 
 				loop
+					
 					await SEC;
+					emit CURRENT_FLOOR(etage_actuel);	%Affiche l'étage actuel
+
+					
+					if((stopped = false) and (door_closed = true) and ((mv_up = true) or (mv_down = true))) then
+						tick_etage := tick_etage+1;
+						etage_prec:=etage_actuel;
+					end if;
+					
+					if(tick_etage = 16) then
+						tick_etage :=0;
+						if(montait = true) then etage_actuel:= etage_prec+1; %Changement etage
+						else	etage_actuel:= etage_prec-1;	%Changement etage
+						end if;
+						
+						if(hold_0=true and etage_actuel=0) then hold_0:=false; stopped:=true; end if;
+						if(hold_1=true and etage_actuel=1) then hold_1:=false; stopped:=true; end if;
+						if(hold_2=true and etage_actuel=2) then hold_2:=false; stopped:=true; end if;
+						if(hold_3=true and etage_actuel=3) then hold_3:=false; stopped:=true; end if;
+						if(hold_4=true and etage_actuel=4) then hold_4:=false; stopped:=true; end if;
+						if(hold_5=true and etage_actuel=5) then hold_5:=false; stopped:=true; end if;
+						if(hold_6=true and etage_actuel=6) then hold_6:=false; stopped:=true; end if;
+						if(hold_7=true and etage_actuel=7) then hold_7:=false; stopped:=true; end if;
+						if(hold_8=true and etage_actuel=8) then hold_8:=false; stopped:=true; end if;
+						if(hold_9=true and etage_actuel=9) then hold_9:=false; stopped:=true; end if;
+							%mv_up := false;
+							%mv_down := false;
+					end if;
+					
+				%BOUTONS CABINE - Quand enfoncés, en même temps ou pas
+				%la variable hold_#etage est à true.
+					present ET_0 then
+							hold_0:= true;% else hold_0:= false;						
+						end present;
+					present ET_1 then
+							hold_1:= true;% else hold_1:= false;
+						end present;
+					present ET_2 then
+							hold_2:= true;% else hold_2:= false;
+						end present;
+					present ET_3 then
+							hold_3:= true;% else hold_3:= false;
+						end present;
+					present ET_4 then
+							hold_4:= true;% else hold_4:= false;
+						end present;
+					present ET_5 then
+							hold_5:= true;% else hold_5:= false;
+						end present;
+					present ET_6 then
+							hold_6:= true;% else hold_6:= false;
+						end present;
+					present ET_7 then
+							hold_7:= true;% else hold_7:= false;
+						end present;
+					present ET_8 then
+							hold_8:= true;% else hold_8:= false;
+						end present;
+					present ET_9 then
+							hold_9:= true;% else hold_9:= false;
+						end present;
+				
+				if(stopped = true) then
 				%ETAGE 0
+					mv_up := false;
+					mv_down := false;
 					if(etage_actuel = 0) then
-						emit LIGHT_0;
+						emit LIGHT_0;	%Affichage lampe
 						hold_0:=false;	%On a atteint l'étage demandé
 						if((hold_1= true) or (hold_2= true) or (hold_3= true) or (hold_4= true) or (hold_5= true)
 						or (hold_6= true) or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
@@ -66,7 +151,7 @@ module Elevator:
 						end if;
 				%ETAGE 1
 					elsif(etage_actuel = 1) then
-						emit LIGHT_1;
+						emit LIGHT_1;	%Affichage lampe
 						hold_1:=false;	%On a atteint l'étage demandé
 						%L'ascenseur montait
 						if(montait = true) then
@@ -79,6 +164,8 @@ module Elevator:
 								mv_down := false;
 							elsif(hold_0 = true) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							else
@@ -88,6 +175,8 @@ module Elevator:
 						elsif(descendait = true) then
 							if(hold_0= true) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							elsif((hold_2= true) or (hold_3= true) or (hold_4= true) or (hold_5= true)
@@ -117,6 +206,8 @@ module Elevator:
 								mv_down := false;
 							elsif((hold_0 = true) or (hold_1 = true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							else
@@ -126,6 +217,8 @@ module Elevator:
 						elsif (descendait = true) then
 							if((hold_0= true) or (hold_1= true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							elsif((hold_3= true) or (hold_4= true) or (hold_5= true) or (hold_6= true)
@@ -154,6 +247,8 @@ module Elevator:
 								mv_down := false;
 							elsif((hold_0 = true) or (hold_1 = true) or (hold_2 = true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							else
@@ -163,6 +258,8 @@ module Elevator:
 						elsif(descendait = true) then
 							if((hold_0= true) or (hold_1= true) or (hold_2= true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							elsif((hold_4= true) or (hold_5= true)
@@ -192,6 +289,8 @@ module Elevator:
 							elsif((hold_0 = true) or (hold_1 = true) or
 								(hold_2 = true) or (hold_3 = true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							else
@@ -201,6 +300,8 @@ module Elevator:
 						elsif(descendait = true) then
 							if((hold_0= true) or (hold_1= true) or (hold_2= true) or (hold_3= true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							elsif((hold_4= true) or (hold_5= true)
@@ -229,6 +330,8 @@ module Elevator:
 							elsif((hold_0 = true) or (hold_1 = true) or (hold_2 = true)
 								or (hold_3 = true) or (hold_4 = true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							else
@@ -239,6 +342,8 @@ module Elevator:
 							if((hold_0= true) or (hold_1= true) or (hold_2= true)
 							or (hold_3= true) or (hold_4= true)) then
 								emit DESCEND;
+								montait := false;
+								descendait := true;
 								mv_up := false;
 								mv_down := true;
 							elsif((hold_6= true) or (hold_7= true)
@@ -252,35 +357,18 @@ module Elevator:
 								emit ARRET;
 							end if;
 						end if;
+				%ENTRE DEUX ETAGES
+					%else
+					%	if(
+					
 					end if;
 
+					if((mv_up = false) and (mv_down = false)) then stopped := true;
+					else stopped := false; end if;
+				end if;
 				
-					present ET_0 then
-							hold_0:= true; else hold_0:= false;						
-						end present;
-					present ET_1 then
-							hold_1:= true; else hold_1:= false;
-						end present;
-					present ET_2 then
-							hold_2:= true; else hold_2:= false;
-						end present;
-					present ET_3 then
-							hold_3:= true; else hold_3:= false;
-						end present;
-					present ET_4 then
-							hold_4:= true; else hold_4:= false;
-						end present;
-					present ET_5 then
-							hold_5:= true; else hold_5:= false;
-						end present;
-					present ET_6 then
-							hold_6:= true; else hold_6:= false;
-						end present;
+					
 
-				%BOUTONS CABINE - Quand enfoncés, en même temps ou pas
-				%la variable hold_#etage est à true.
-
-				%ALLUMAGE LUMIERES CABINE
 
 
 				end loop;
