@@ -1,0 +1,290 @@
+%esterel-env
+%esterel -simul projet.strl
+%gcc -c -m32 projet.c
+%xes -Xcomp -m32 projet.o
+
+	%On se situe à un étage.
+	%Un bouton est enfoncé.
+		%Si l'ascenceur MONTAIT
+			%!! dans cet ordre
+			%Si l'étage demandé est au-dessus de l'étage actuel => monte
+			%Si l'étage demandé est au-dessous de l'étage actuel => descend		(variable mv_up à false, mv_down à true)
+		%Si l'ascenceur DESCENDAIT
+			%!! dans cet ordre
+			%Si l'étage demandé est au-dessous de l'étage actuel => descend
+			%Si l'étage demandé est au-dessus de l'étage actuel => monte		(variable mv_up à true, mv_down à false)
+
+		%PASSAGE à un etage
+			%Etage non sélectionné : continue	(CURRENT_FLOOR : émettre valeur étage dans lequel on vient de passer)
+			%Etage sélectionné : arrêt			(Variable LIGHT_#etage à éteindre car l'étage n'est plus demandé)
+
+		%Retourne au début
+
+	%Affichage des lampes à faire en parallèle
+
+module Elevator:
+	input SEC;				%Secondes
+	input OUVRIR;			%Bouton ouverture portes
+	input ET_0,ET_1,ET_2,ET_3,ET_4,ET_5,ET_6,ET_7,ET_8,ET_9;						%Boutons cabine				
+	input CALL_0,CALL_1,CALL_2,CALL_3,CALL_4,CALL_5,CALL_6,CALL_7,CALL_8,CALL_9;	%Boutons situés aux étages
+	%input SENSOR_0,SENSOR_1,SENSOR_2,SENSOR_3,SENSOR_4,SENSOR_5,SENSOR_6,SENSOR_7,SENSOR_8,SENSOR_9;	%Sensors etages
+
+	output LIGHT_0,LIGHT_1,LIGHT_2,LIGHT_3,LIGHT_4,LIGHT_5,LIGHT_6,LIGHT_7,LIGHT_8,LIGHT_9;				%Lumières boutons
+	output CURRENT_FLOOR;	%Etage actuel (affichage interieur et extérieur);
+	output MONTE, DESCEND, ARRET;
+	
+	var mv_up, mv_down, stopped, montait, descendait, bouton: boolean in
+		var etage_prec, etage_actuel, etage_dem, tab: integer in
+			var hold_0,hold_1,hold_2,hold_3,hold_4,hold_5,hold_6,hold_7,hold_8,hold_9: boolean in
+
+				%INITIALISATION
+				etage_actuel:=2;
+				etage_prec:=0;
+				%etage_dem:=0;
+				montait :=true;
+				descendait :=false;
+				bouton :=false;
+				hold_0:=false;hold_1:=false;hold_2:=false;hold_3:=false;hold_4:=false;	%Etages selectionnés
+				hold_5:=false;hold_6:=false;hold_7:=false;hold_8:=false;hold_9:=false;	%Etages selectionnés
+				
+
+				loop
+					await SEC;
+				%ETAGE 0
+					if(etage_actuel = 0) then
+						emit LIGHT_0;
+						hold_0:=false;	%On a atteint l'étage demandé
+						if((hold_1= true) or (hold_2= true) or (hold_3= true) or (hold_4= true) or (hold_5= true)
+						or (hold_6= true) or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+							emit MONTE;
+							montait := true;
+							descendait := false;
+							mv_up := true;
+							mv_down := false;
+						else
+							emit ARRET;
+						end if;
+				%ETAGE 1
+					elsif(etage_actuel = 1) then
+						emit LIGHT_1;
+						hold_1:=false;	%On a atteint l'étage demandé
+						%L'ascenseur montait
+						if(montait = true) then
+							if((hold_2= true) or (hold_3= true) or (hold_4= true) or (hold_5= true)
+							or (hold_6= true) or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							elsif(hold_0 = true) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							else
+								emit ARRET;
+							end if;
+						%L'ascenceur descendait
+						elsif(descendait = true) then
+							if(hold_0= true) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							elsif((hold_2= true) or (hold_3= true) or (hold_4= true) or (hold_5= true)
+							or (hold_6= true) or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							else
+								emit ARRET;
+							end if;
+						end if;
+
+				%ETAGE 2
+					elsif(etage_actuel = 2) then
+						emit LIGHT_2;
+						hold_2:=false;	%On a atteint l'étage demandé
+						%L'ascenseur montait
+						if(montait = true) then
+							if((hold_3= true) or (hold_4= true) or (hold_5= true) or (hold_6= true)
+							or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							elsif((hold_0 = true) or (hold_1 = true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							else
+								emit ARRET;
+							end if;
+						%L'ascenceur descendait
+						elsif (descendait = true) then
+							if((hold_0= true) or (hold_1= true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							elsif((hold_3= true) or (hold_4= true) or (hold_5= true) or (hold_6= true)
+								or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							else
+								emit ARRET;
+							end if;
+						end if;
+				%ETAGE 3
+					elsif(etage_actuel = 3) then
+						emit LIGHT_3;
+						hold_3:=false;	%On a atteint l'étage demandé
+						%L'ascenseur montait
+						if(montait = true) then
+							if((hold_4= true) or (hold_5= true) or (hold_6= true)
+							or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							elsif((hold_0 = true) or (hold_1 = true) or (hold_2 = true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							else
+								emit ARRET;
+							end if;
+						%L'ascenceur descendait
+						elsif(descendait = true) then
+							if((hold_0= true) or (hold_1= true) or (hold_2= true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							elsif((hold_4= true) or (hold_5= true)
+							or (hold_6= true) or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							else
+								emit ARRET;
+							end if;
+						end if;
+				%ETAGE 4
+					elsif(etage_actuel = 4) then
+						emit LIGHT_4;
+						hold_4:=false;	%On a atteint l'étage demandé
+						%L'ascenseur montait
+						if(montait = true) then
+							if((hold_5= true) or (hold_6= true) or (hold_7= true) 
+							or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							elsif((hold_0 = true) or (hold_1 = true) or
+								(hold_2 = true) or (hold_3 = true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							else
+								emit ARRET;
+							end if;
+						%L'ascenceur descendait
+						elsif(descendait = true) then
+							if((hold_0= true) or (hold_1= true) or (hold_2= true) or (hold_3= true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							elsif((hold_4= true) or (hold_5= true)
+							or (hold_6= true) or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							else
+								emit ARRET;
+							end if;
+						end if;
+				%ETAGE 5
+					elsif(etage_actuel = 5) then
+						emit LIGHT_5;
+						hold_5:=false;	%On a atteint l'étage demandé
+						%L'ascenseur montait
+						if(montait = true) then
+							if((hold_6= true) or (hold_7= true) or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							elsif((hold_0 = true) or (hold_1 = true) or (hold_2 = true)
+								or (hold_3 = true) or (hold_4 = true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							else
+								emit ARRET;
+							end if;
+						%L'ascenceur descendait
+						elsif(descendait = true) then
+							if((hold_0= true) or (hold_1= true) or (hold_2= true)
+							or (hold_3= true) or (hold_4= true)) then
+								emit DESCEND;
+								mv_up := false;
+								mv_down := true;
+							elsif((hold_6= true) or (hold_7= true)
+							or (hold_8= true) or (hold_9= true)) then
+								emit MONTE;
+								montait := true;
+								descendait := false;
+								mv_up := true;
+								mv_down := false;
+							else
+								emit ARRET;
+							end if;
+						end if;
+					end if;
+
+				
+					present ET_0 then
+							hold_0:= true; else hold_0:= false;						
+						end present;
+					present ET_1 then
+							hold_1:= true; else hold_1:= false;
+						end present;
+					present ET_2 then
+							hold_2:= true; else hold_2:= false;
+						end present;
+					present ET_3 then
+							hold_3:= true; else hold_3:= false;
+						end present;
+					present ET_4 then
+							hold_4:= true; else hold_4:= false;
+						end present;
+					present ET_5 then
+							hold_5:= true; else hold_5:= false;
+						end present;
+					present ET_6 then
+							hold_6:= true; else hold_6:= false;
+						end present;
+
+				%BOUTONS CABINE - Quand enfoncés, en même temps ou pas
+				%la variable hold_#etage est à true.
+
+				%ALLUMAGE LUMIERES CABINE
+
+
+				end loop;
+			end var
+		end var
+	end var
+end module
