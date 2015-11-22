@@ -3,9 +3,6 @@
 %gcc -c -m32 projet.c
 %xes -Xcomp -m32 projet.o
 
-%TODO TODO TODO 
-%Gestion d'aucun etage selectionne.
-%TODO TODO TODO
 	%%%%%%%%%%%%%%%%MONTEE/DESCENTE%%%%%%%%%%%%%%%%
 	%On se situe à un étage.
 	%Un bouton est enfoncé.
@@ -51,12 +48,14 @@
 
 module Elevator:
 	input SEC;				%Secondes
-	input OUVRIR;			%Bouton ouverture portes
+	input OPEN_DOOR;			%Bouton ouverture portes
 	input ET_9,ET_8,ET_7,ET_6,ET_5,ET_4,ET_3,ET_2,ET_1,ET_0;						%Boutons cabine				
 	input CALL_9,CALL_8,CALL_7,CALL_6,CALL_5,CALL_4,CALL_3,CALL_2,CALL_1,CALL_0;	%Boutons situés aux étages
 	%input SENSOR_0,SENSOR_1,SENSOR_2,SENSOR_3,SENSOR_4,SENSOR_5,SENSOR_6,SENSOR_7,SENSOR_8,SENSOR_9;	%Sensors etages
 
 	output LIGHT_9,LIGHT_8,LIGHT_7,LIGHT_6,LIGHT_5,LIGHT_4,LIGHT_3,LIGHT_2,LIGHT_1,LIGHT_0;				%Lumières boutons
+	output K_9,K_8,K_7,K_6,K_5,K_4,K_3,K_2,K_1,K_0;				%Lumières boutons CALL
+	output CALLED_9,CALLED_8,CALLED_7,CALLED_6,CALLED_5,CALLED_4,CALLED_3,CALLED_2,CALLED_1,CALLED_0; %Lumières boutons Cabine
 	output CURRENT_FLOOR: integer;	%Etage actuel (affichage interieur et extérieur);
 	output MONTE, DESCEND, ARRET, D_OPENED, D_CLOSED, OPENING, CLOSING, ERROR;	%Savoir si l'ascenceur monte ou descend (ou arrêté)
 	
@@ -85,32 +84,32 @@ module Elevator:
 
 				%BOUTONS CABINE - Quand enfoncés, en même temps ou pas
 				%la variable hold_#etage est à true.
-					present ET_0 then hold_0:=true;
+					present (ET_0 or CALL_0) then if(etage_actuel <> 0) then hold_0:=true; end if;
 						end present;
-					present ET_1 then hold_1:=true;
+					present (ET_1 or CALL_1) then if(etage_actuel <> 1) then hold_1:=true; end if;
 						end present;
-					present ET_2 then hold_2:=true;
+					present (ET_2 or CALL_2) then if(etage_actuel <> 2) then hold_2:=true; end if;
 						end present;
-					present ET_3 then hold_3:=true;
+					present (ET_3 or CALL_3) then if(etage_actuel <> 3) then hold_3:=true; end if;
 						end present;
-					present ET_4 then hold_4:=true;
+					present (ET_4 or CALL_4) then if(etage_actuel <> 4) then hold_4:=true; end if;
 						end present;
-					present ET_5 then hold_5:=true;
+					present (ET_5 or CALL_5) then if(etage_actuel <> 5) then hold_5:=true; end if;
 						end present;
-					present ET_6 then hold_6:=true;
+					present (ET_6 or CALL_6) then if(etage_actuel <> 6) then hold_6:=true; end if;
 						end present;
-					present ET_7 then hold_7:=true;
+					present (ET_7 or CALL_7) then if(etage_actuel <> 7) then hold_7:=true; end if;
 						end present;
-					present ET_8 then hold_8:=true;
+					present (ET_8 or CALL_8) then if(etage_actuel <> 8) then hold_8:=true; end if;
 						end present;
-					present ET_9 then hold_9:=true;
+					present (ET_9 or CALL_9) then if(etage_actuel <> 9) then hold_9:=true; end if;
 						end present;
 
 					%Un étage a-t-il été choisi? oui : chosen=true
-					if((hold_0=true) or (hold_1=true)	or (hold_2=true)
-					or (hold_3=true) or (hold_4=true)	or (hold_5=true)
-					or (hold_6=true) or (hold_7=true)	or (hold_8=true)
-					or (hold_9=true)) then
+					if((hold_0=true and (etage_actuel<>0)) or (hold_1=true and (etage_actuel<>0))	or (hold_2=true and (etage_actuel<>0))
+					or (hold_3=true and (etage_actuel<>3)) or (hold_4=true and (etage_actuel<>0))	or (hold_5=true and (etage_actuel<>0))
+					or (hold_6=true and (etage_actuel<>6)) or (hold_7=true and (etage_actuel<>0))	or (hold_8=true and (etage_actuel<>0))
+					or (hold_9=true and (etage_actuel<>9))) then
 						chosen:=true;
 					else  
 						chosen:=false;
@@ -120,7 +119,7 @@ module Elevator:
 
 					%Ouverture des portes (2sec)
 					if(phase=1) then
-						if(tick_door=2) then
+						if(tick_door=1) then
 							tick_door:=0;
 							phase:=2; %Les portes sont ouvertes, on passe phase 2 (attente O)
 						else
@@ -130,15 +129,16 @@ module Elevator:
 					%Attente portes ouvertes (3sec)
 					elsif(phase=2) then
 						emit D_OPENED;
-						if(wait_etage=3) then		%Apres trois secondes, on ferme les portes
-							wait_etage :=0;	%Reset compteur
+						if(wait_etage=2) then		%Apres trois secondes, on ferme les portes
+							wait_etage:=0;	%Reset compteur
 							phase:=3;	%Il faut fermer les portes
 						else
 							wait_etage:=wait_etage+1;
 						end if;
 					%Fermeture des portes (2sec)
 					elsif(phase=3) then
-						if(tick_door=2) then
+						
+						if(tick_door=1) then
 							tick_door:=0;
 							wait_etage :=0;
 							if(chosen=true) then
@@ -153,7 +153,11 @@ module Elevator:
 						end if;
 				
 				elsif(phase=4) then
-					emit D_CLOSED;
+				emit D_CLOSED;
+				present OPEN_DOOR then
+					wait_etage:=0;
+					phase:=1;
+				else
 				%ETAGE 0
 					if(etage_actuel=0) then
 						if((hold_1=true) or (hold_2=true) or (hold_3=true) or (hold_4=true) or (hold_5=true)
@@ -564,11 +568,12 @@ module Elevator:
 							mv_down:=false;
 						end if;
 					end if;
+				end present;
 				%Déplacement de l'ascenceur
 				elsif(phase=5) then
 					emit D_CLOSED; %Les portes sont fermees
 					if(tick_etage=5) then %TODO TODO TODO TODO TODO
-						%phase:=4;
+						phase:=4;
 						tick_etage :=0;
 						if(montait=true) 
 							then etage_actuel:=etage_prec+1; %Changement etage
@@ -608,6 +613,18 @@ module Elevator:
 				elsif(etage_actuel=9)then emit LIGHT_9;
 				end if;
 
+				%Affichage boutons appelés
+				if(hold_0=true) then emit K_0; end if;
+				if(hold_1=true) then emit K_1; end if;
+				if(hold_2=true) then emit K_2; end if;
+				if(hold_3=true) then emit K_3; end if;
+				if(hold_4=true) then emit K_4; end if;
+				if(hold_5=true) then emit K_5; end if;
+				if(hold_6=true) then emit K_6; end if;
+				if(hold_7=true) then emit K_7; end if;
+				if(hold_8=true) then emit K_8; end if;
+				if(hold_9=true) then emit K_9; end if;
+				emit ERROR;
 				end loop;
 			end var
 		end var

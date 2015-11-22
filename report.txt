@@ -1,0 +1,45 @@
+CRITICAL APPLICATION DEVELOPMENT
+PROJECT
+EMC5
+2015-2016
+Antoine GUEGUEN
+
+1. Description and explanation of esterel model
+
+1.1 Phases
+The behaviour of the elevator is separated in 5 phases as follows:
+	phase 1: opening of the doors of the elevator (2 secs)
+	phase 2: doors remaining opened (3 secs)
+	phase 3: doors closing (2 secs)
+	phase 4: doors are closed but the elevator is not moving (not timed)
+	phase 5: the elevator is moving (4*4 = 16 secs)
+
+"phase" is an integer variable, that can take the values 1, 2, 3, 4 or 5 according to the current phase. For each phase, a counter is used in order to know the time spent in this phase. Once the expected time is spent (for example 3 seconds in phase 2), the phase value changes according to the expected behaviour. The elevator starts with its doors opened, at floor 0.
+
+1.2 Floor selection
+When a floor is selected (in the cabin or outside), a boolean variable (hold_X for floor X) is put to true. There is a variable for each floor. Once the floor is reached, this variable is put to false. This allows to select multiple floors simultaneously and prevents having to keep pushing the floor choice button.
+
+1.3 Button priority
+When two floors are selected, one of which lower than the current floor, the other higher, the elevator will move the same way as previously: if it was going up, then it will keep on going up, and respectively for going down. It seemed to be the way to code, since this is what elevators do in real life.
+
+1.4 Floor displaying
+The current floor displayed in the output "CURRENT FLOOR" corresponds to the current floor if the elevator is not moving, and the previous floor when the elevator is between two floors. The 
+
+2. User manual of program
+
+2.1 Inputs
+	-"SEC" is used 
+	-"OPEN_DOOR" allows the user to open the doors when they are closed. It can only be used in phase 4.
+	-The inputs "ET_0" to "ET_9" represent the buttons in the cabin, while the inputs "CALL_0" to -"CALL_9" represend the buttons located at the floors, outside the elevator.
+
+
+2.2 Outputs
+	-The outputs "LIGHT_0" to "LIGHT_9" correspond to the CALL buttons.
+	-"ARRET" indicates that the elevator is not moving.
+	-"MONTE" indicates that the elevator is moving up.
+	-"DESCEND" indicates that the elevator is moving down.
+	-"D_OPENED" indicates that the elevator's door are opened.
+	-"ERROR" is used to treat special cases that are not supposed to happen, and should not come out.
+
+
+D_CLOSED indicates that the elevator's door are closed
