@@ -1,0 +1,513 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Projet.strl - EMC5 - Critical Application Development
+%  Antoine Gueguen - 2015
+%
+%  esterel-env
+%  esterel -simul projet.strl
+%  gcc -c -m32 projet.c
+%  xes -Xcomp -m32 projet.o
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+module Elevator:
+	input SEC;				%Secondes
+	input OPEN_DOOR;			%Bouton ouverture portes
+	input BUTTON9,BUTTON8,BUTTON7,BUTTON6,BUTTON5,BUTTON4,BUTTON3,BUTTON2,BUTTON1,BUTTON0;						%Boutons cabine				
+	input CALL_9,CALL_8,CALL_7,CALL_6,CALL_5,CALL_4,CALL_3,CALL_2,CALL_1,CALL_0;	%Boutons situés aux étages
+	%input SENSOR_0,SENSOR_1,SENSOR_2,SENSOR_3,SENSOR_4,SENSOR_5,SENSOR_6,SENSOR_7,SENSOR_8,SENSOR_9;	%Sensors etages
+
+	output LIGHT_9,LIGHT_8,LIGHT_7,LIGHT_6,LIGHT_5,LIGHT_4,LIGHT_3,LIGHT_2,LIGHT_1,LIGHT_0;				%Position actuelle
+	output K_9,K_8,K_7,K_6,K_5,K_4,K_3,K_2,K_1,K_0;		%Lumières boutons cabine
+	output CALL_LIGHT;									%Lumières boutons cage d'ascenceur
+	output CURRENT_FLOOR: integer;						%Etage actuel (affichage interieur et extérieur);
+	output MONTE, DESCEND, ARRET, D_OPENED, D_CLOSED, OPENING, CLOSING, ERROR;	%Savoir si l'ascenceur monte ou descend (ou arrêté)
+	
+	var etage_prec, etage_actuel, tick_etage, tick_door, wait_etage, phase: integer in
+		var 	hold_9,hold_8,hold_7,hold_6,hold_5,hold_4,hold_3,hold_2,hold_1,hold_0,
+			l_c_0,l_c_1,l_c_2,l_c_3,l_c_4,l_c_5,l_c_6,l_c_7,l_c_8,l_c_9,
+			l_o_0,l_o_1,l_o_2,l_o_3,l_o_4,l_o_5,l_o_6,l_o_7,l_o_8,l_o_9,
+			mv_up, mv_down, chosen: boolean in
+
+			%INITIALISATION
+			etage_actuel:=0; %Démarre à l'étage 2
+			etage_prec:=etage_actuel;
+			hold_0:=false;hold_1:=false;hold_2:=false;hold_3:=false;hold_4:=false;	%Etages selectionnés
+			hold_5:=false;hold_6:=false;hold_7:=false;hold_8:=false;hold_9:=false;	%Etages selectionnés
+			l_c_0:=false;l_c_1:=false;l_c_2:=false;l_c_3:=false;l_c_4:=false;
+			l_c_5:=false;l_c_6:=false;l_c_7:=false;l_c_8:=false;l_c_9:=false;
+			l_o_0:=false;l_o_1:=false;l_o_2:=false;l_o_3:=false;l_o_4:=false;
+			l_o_5:=false;l_o_6:=false;l_o_7:=false;l_o_8:=false;l_o_9:=false;
+			
+			mv_up:=true;	%Arbitraire
+			mv_down:=false;
+			tick_etage:=0;
+			tick_door:=0;
+			wait_etage:=0;
+
+			phase:=1;	%Phases : 1=ouverture / 2=attente(ouvert) / 3=fermeture / 4=attente(ferme) / 5=déplacement
+
+			loop
+
+				await SEC;
+				%Détection bouton enfoncé à l'intérieur de la cabine
+				present(BUTTON0) then if(etage_actuel <> 0) then hold_0:=true; l_c_0:=true; end if; end present;
+				present(BUTTON1) then if(etage_actuel <> 1) then hold_1:=true; l_c_1:=true; end if; end present;
+				present(BUTTON2) then if(etage_actuel <> 2) then hold_2:=true; l_c_2:=true; end if; end present;
+				present(BUTTON3) then if(etage_actuel <> 3) then hold_3:=true; l_c_3:=true; end if; end present;
+				present(BUTTON4) then if(etage_actuel <> 4) then hold_4:=true; l_c_4:=true; end if; end present;
+				present(BUTTON5) then if(etage_actuel <> 5) then hold_5:=true; l_c_5:=true; end if; end present;
+				present(BUTTON6) then if(etage_actuel <> 6) then hold_6:=true; l_c_6:=true; end if; end present;
+				present(BUTTON7) then if(etage_actuel <> 7) then hold_7:=true; l_c_7:=true; end if; end present;
+				present(BUTTON8) then if(etage_actuel <> 8) then hold_8:=true; l_c_8:=true; end if; end present;
+				present(BUTTON9) then if(etage_actuel <> 9) then hold_9:=true; l_c_9:=true; end if; end present;
+
+				%Détection bouton enfoncé à l'extérieur de la cabine
+				present(CALL_0) then if(etage_actuel <> 0) then hold_0:=true; l_o_0:=true; end if;  end present;
+				present(CALL_1) then if(etage_actuel <> 1) then hold_1:=true; l_o_1:=true; end if;  end present;
+				present(CALL_2) then if(etage_actuel <> 2) then hold_2:=true; l_o_2:=true; end if;  end present;
+				present(CALL_3) then if(etage_actuel <> 3) then hold_3:=true; l_o_3:=true; end if;  end present;
+				present(CALL_4) then if(etage_actuel <> 4) then hold_4:=true; l_o_4:=true; end if;  end present;
+				present(CALL_5) then if(etage_actuel <> 5) then hold_5:=true; l_o_5:=true; end if;  end present;
+				present(CALL_6) then if(etage_actuel <> 6) then hold_6:=true; l_o_6:=true; end if;  end present;
+				present(CALL_7) then if(etage_actuel <> 7) then hold_7:=true; l_o_7:=true; end if;  end present;
+				present(CALL_8) then if(etage_actuel <> 8) then hold_8:=true; l_o_8:=true; end if;  end present;
+				present(CALL_9) then if(etage_actuel <> 9) then hold_9:=true; l_o_9:=true; end if;  end present;
+
+				%Un étage a-t-il été choisi? oui : chosen=true
+				if((hold_0=true and (etage_actuel<>0)) or (hold_1=true and (etage_actuel<>0)) or (hold_2=true and (etage_actuel<>0))
+				or (hold_3=true and (etage_actuel<>3)) or (hold_4=true and (etage_actuel<>0)) or (hold_5=true and (etage_actuel<>0))
+				or (hold_6=true and (etage_actuel<>6)) or (hold_7=true and (etage_actuel<>0)) or (hold_8=true and (etage_actuel<>0))
+				or (hold_9=true and (etage_actuel<>9))) then
+					chosen:=true;
+				else  
+					chosen:=false;
+				end if;
+			
+				emit CURRENT_FLOOR(etage_actuel);	%Affiche l'étage actuel
+
+				%Ouverture des portes (2sec)
+				if(phase=1) then
+					emit ARRET;
+					if(tick_door=1) then
+						tick_door:=0;
+						phase:=2; %Les portes sont ouvertes, on passe phase 2 (attente O)
+					else
+						tick_door:=tick_door+1;
+						emit OPENING;
+					end if;
+				%Attente portes ouvertes (3sec)
+				elsif(phase=2) then
+					emit ARRET;
+					emit D_OPENED;
+					if(wait_etage=2) then		%Apres trois secondes, on ferme les portes
+						wait_etage:=0;	%Reset compteur
+						phase:=3;	%Il faut fermer les portes
+					else
+						wait_etage:=wait_etage+1;
+					end if;
+				%Fermeture des portes (2sec)
+				elsif(phase=3) then
+					emit ARRET;				
+					if(tick_door=1) then
+						tick_door:=0;
+						wait_etage :=0;
+						if(chosen=true) then
+							phase:=5;	%L'ascenceur se déplace
+						else
+							emit ARRET;
+							phase:=4	%L'ascenceur attend une sélection d'étage
+						end if;
+					else
+						tick_door:=tick_door+1;
+						emit CLOSING;
+					end if;
+				elsif(phase=4) then
+					emit D_CLOSED;
+					present OPEN_DOOR then
+						wait_etage:=0;
+						phase:=1;
+					else
+					%ETAGE 0
+						if(etage_actuel=0) then
+							if((hold_1=true) or (hold_2=true) or (hold_3=true) or (hold_4=true) or (hold_5=true)
+							or (hold_6=true) or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+								emit MONTE;
+								mv_up:=true;
+								mv_down:=false;
+								phase:=5;%L'ascenceur peut se déplacer;
+							else
+								emit ARRET;
+								mv_up:=false;
+								mv_down:=false;
+							end if;
+					%ETAGE 1
+						elsif(etage_actuel=1) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if((hold_2=true) or (hold_3=true) or (hold_4=true) or (hold_5=true)
+								or (hold_6=true) or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif(hold_0=true) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if(hold_0=true) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_2=true) or (hold_3=true) or (hold_4=true) or (hold_5=true)
+								or (hold_6=true) or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+
+					%ETAGE 2
+						elsif(etage_actuel=2) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if((hold_3=true) or (hold_4=true) or (hold_5=true) or (hold_6=true)
+								or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_0=true) or (hold_1=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if((hold_0=true) or (hold_1=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_3=true) or (hold_4=true) or (hold_5=true) or (hold_6=true)
+									or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+					%ETAGE 3
+						elsif(etage_actuel=3) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if((hold_4=true) or (hold_5=true) or (hold_6=true)
+								or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_0=true) or (hold_1=true) or (hold_2=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if((hold_0=true) or (hold_1=true) or (hold_2=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_4=true) or (hold_5=true)
+								or (hold_6=true) or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+					%ETAGE 4
+						elsif(etage_actuel=4) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if((hold_5=true) or (hold_6=true) or (hold_7=true) 
+								or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_0=true) or (hold_1=true) or
+									(hold_2=true) or (hold_3=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if((hold_0=true) or (hold_1=true) or (hold_2=true) or (hold_3=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_5=true) or (hold_6=true) or (hold_7=true)
+								or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+					%ETAGE 5
+						elsif(etage_actuel=5) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if((hold_6=true) or (hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_0=true) or (hold_1=true) or (hold_2=true)
+									or (hold_3=true) or (hold_4=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if((hold_0=true) or (hold_1=true) or (hold_2=true)
+								or (hold_3=true) or (hold_4=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif(	(hold_6=true) or (hold_7=true) or
+									(hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+					%ETAGE 6
+						elsif(etage_actuel=6) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if((hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif(	(hold_0=true) or (hold_1=true) or (hold_2=true) or
+									(hold_3=true) or (hold_4=true) or (hold_5=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if((hold_0=true) or (hold_1=true) or (hold_2=true) or (hold_3=true) or (hold_4=true) or (hold_5=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_7=true) or (hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+					%ETAGE 7
+						elsif(etage_actuel=7) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if((hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif(	(hold_0=true) or (hold_1=true) or (hold_2=true) or (hold_3=true) or
+									(hold_4=true) or (hold_5=true) or (hold_6=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if((hold_0=true) or (hold_1=true) or (hold_2=true) or (hold_3=true)
+								or (hold_4=true) or (hold_5=true) or (hold_6=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif((hold_8=true) or (hold_9=true)) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+					%ETAGE 8
+						elsif(etage_actuel=8) then
+							%L'ascenseur montait
+							if(mv_up=true) then
+								if(hold_9=true) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif(	(hold_0=true) or (hold_1=true) or (hold_2=true) or (hold_3=true) or
+									(hold_4=true) or (hold_5=true) or (hold_6=true) or (hold_7=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							%L'ascenceur descendait
+							else
+								if(	(hold_0=true) or (hold_1=true) or (hold_2=true) or (hold_3=true) or
+									(hold_4=true) or (hold_5=true) or (hold_6=true) or (hold_7=true)) then
+									emit DESCEND;
+									mv_up:=false;
+									mv_down:=true;
+									phase:=5;%L'ascenceur peut se déplacer;
+								elsif(hold_9=true) then
+									emit MONTE;
+									mv_up:=true;
+									mv_down:=false;
+									phase:=5;%L'ascenceur peut se déplacer;
+								else
+									emit ARRET;
+								end if;
+							end if;
+					%ETAGE 9
+						elsif(etage_actuel=9) then
+							%L'ascenseur montait
+							if(	(hold_0=true) or (hold_1=true) or (hold_2=true) or (hold_3=true) or
+								(hold_5=true) or (hold_6=true) or (hold_7=true) or (hold_8=true)) then
+								emit DESCEND;
+								mv_up:=false;
+								mv_down:=true;
+								phase:=5;%L'ascenceur peut se déplacer;
+							else
+								emit ARRET;
+								%mv_up:=false;
+								%mv_down:=false;
+							end if;
+						end if;
+					end present;
+
+				%Déplacement de l'ascenceur
+				elsif(phase=5) then
+					emit D_CLOSED; %Les portes sont fermees
+					if(tick_etage=15) then
+						phase:=4;
+						tick_etage :=0;
+						if(mv_up=true) 
+							then etage_actuel:=etage_prec+1; %Changement etage
+						else	
+							etage_actuel:=etage_prec-1;	%Changement etage
+						end if;
+						if(hold_0=true and etage_actuel=0) then phase:= 1; l_c_0:=false; l_o_0:= false; hold_0:=false; end if; %Liberation etage, arret
+						if(hold_1=true and etage_actuel=1) then phase:= 1; l_c_1:=false; l_o_1:= false; hold_1:=false; end if; %Liberation etage, arret
+						if(hold_2=true and etage_actuel=2) then phase:= 1; l_c_2:=false; l_o_2:= false; hold_2:=false; end if; %Liberation etage, arret
+						if(hold_3=true and etage_actuel=3) then phase:= 1; l_c_3:=false; l_o_3:= false; hold_3:=false; end if; %Liberation etage, arret
+						if(hold_4=true and etage_actuel=4) then phase:= 1; l_c_4:=false; l_o_4:= false; hold_4:=false; end if; %Liberation etage, arret
+						if(hold_5=true and etage_actuel=5) then phase:= 1; l_c_5:=false; l_o_5:= false; hold_5:=false; end if; %Liberation etage, arret
+						if(hold_6=true and etage_actuel=6) then phase:= 1; l_c_6:=false; l_o_6:= false; hold_6:=false; end if; %Liberation etage, arret
+						if(hold_7=true and etage_actuel=7) then phase:= 1; l_c_7:=false; l_o_7:= false; hold_7:=false; end if; %Liberation etage, arret
+						if(hold_8=true and etage_actuel=8) then phase:= 1; l_c_8:=false; l_o_8:= false; hold_8:=false; end if; %Liberation etage, arret
+						if(hold_9=true and etage_actuel=9) then phase:= 1; l_c_9:=false; l_o_9:= false; hold_9:=false; end if; %Liberation etage, arret
+					else
+						tick_etage:=tick_etage+1;
+						if(mv_up=true) then emit MONTE;
+							elsif(mv_down=true) then emit DESCEND;
+						else	
+							emit ERROR; 
+						end if;
+						etage_prec:=etage_actuel;
+					end if;
+			
+				end if;
+				%Affichage lampes (extra)
+				if(etage_actuel=0) then emit LIGHT_0;
+				elsif(etage_actuel=1)then emit LIGHT_1;
+				elsif(etage_actuel=2)then emit LIGHT_2;
+				elsif(etage_actuel=3)then emit LIGHT_3;
+				elsif(etage_actuel=4)then emit LIGHT_4;
+				elsif(etage_actuel=5)then emit LIGHT_5;
+				elsif(etage_actuel=6)then emit LIGHT_6;
+				elsif(etage_actuel=7)then emit LIGHT_7;
+				elsif(etage_actuel=8)then emit LIGHT_8;
+				elsif(etage_actuel=9)then emit LIGHT_9;
+				end if;
+
+				%Lumières boutons appelés dans la cabine
+				if(l_c_0=true) then emit K_0; end if;
+				if(l_c_1=true) then emit K_1; end if;
+				if(l_c_2=true) then emit K_2; end if;
+				if(l_c_3=true) then emit K_3; end if;
+				if(l_c_4=true) then emit K_4; end if;
+				if(l_c_5=true) then emit K_5; end if;
+				if(l_c_6=true) then emit K_6; end if;
+				if(l_c_7=true) then emit K_7; end if;
+				if(l_c_8=true) then emit K_8; end if;
+				if(l_c_9=true) then emit K_9; end if;
+
+				%Lumière bouton call
+				if(	(l_o_0=true) or
+					(l_o_1=true) or
+					(l_o_2=true) or
+					(l_o_3=true) or
+					(l_o_4=true) or
+					(l_o_5=true) or
+					(l_o_6=true) or
+					(l_o_7=true) or
+					(l_o_8=true) or
+					(l_o_9=true)) then emit CALL_LIGHT;
+				end if;
+			end loop;
+		end var
+	end var
+end module
